@@ -28,3 +28,7 @@ XGB_PARAMS = {
     'random_state': 42,
     'n_jobs': -1
 }
+
+# 💰 Financial Assumptions
+AVERAGE_CLV = 2000      # Customer Lifetime Value (How much a customer is worth)
+CAMPAIGN_COST = 50      # Cost to intervene (e.g., giving a discount or calling them)

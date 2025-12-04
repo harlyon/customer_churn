@@ -2,7 +2,7 @@
 import argparse
 from src.data_loader import load_data, get_data_split
 from src.train import train_model
-from src.evaluation import evaluate_model, run_shap_analysis
+from src.evaluation import evaluate_model, run_shap_analysis, calculate_financial_impact
 
 def main():
     # Argument parser for CLI control
@@ -22,8 +22,14 @@ def main():
     # 3. Train (with optional tuning)
     pipeline = train_model(X_train, y_train, X_test, y_test, tune_optuna=args.tune)
 
-    # 4. Evaluate
-    evaluate_model(pipeline, X_test, y_test)
+    print("🔮 Generating Predictions...")
+
+    # 4. Evaluate and get predictions
+    eval_results = evaluate_model(pipeline, X_test, y_test)
+    y_pred = eval_results['y_pred']
+
+    # 💰 Calculate financial impact using the predictions
+    calculate_financial_impact(y_test, y_pred)
 
     # 5. Explain (Optional)
     if args.shap:
