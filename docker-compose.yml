@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  # 🏋️ TRAINER (Runs once then exits)
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PIP_NO_CACHE_DIR=1
+    container_name: churn_trainer
+    volumes:
+      - ./models:/app/models
+      - ./reports:/app/reports
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PIP_NO_CACHE_DIR=1
+    command: sh -c "python main.py && echo 'Training completed successfully'"
+    restart: "no"
+    tmpfs:
+      - /tmp
+
+  # 📡 API SERVER (Stays alive)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PIP_NO_CACHE_DIR=1
+    container_name: churn_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./reports:/app/reports
+    environment:
+      - MODEL_PATH=/app/models/churn_pipeline.joblib
+      - PYTHONUNBUFFERED=1
+      - PIP_NO_CACHE_DIR=1
+    command: >
+      sh -c "
+      echo 'Waiting for model file to be available...' &&
+      until [ -f /app/models/churn_pipeline.joblib ]; do
+        echo 'Model not found, waiting...';
+        sleep 2;
+      done &&
+      echo 'Starting API server...' &&
+      uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
+      "
+    depends_on:
+      trainer:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /tmp

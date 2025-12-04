@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# Python Cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Local Environments (Crucial!)
+venv/
+env/
+.env
+
+# MacOS junk
+.DS_Store
+
+# Optional: Ignore existing models/reports if you want a fresh run
+# models/*.joblib
+# reports/*.png
