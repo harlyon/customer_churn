@@ -1,12 +1,12 @@
 import pandas as pd
 import joblib
+import shap
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.config import MODEL_PATH
 
 # 1️⃣ Define the Data Structure (DTO)
-# This acts like a TypeScript Interface.
-# If the frontend sends wrong data types, FastAPI returns a 422 Error automatically.
 class CustomerData(BaseModel):
     CreditScore: int
     Geography: str
@@ -21,6 +21,15 @@ class CustomerData(BaseModel):
 
 # 2️⃣ Initialize App & Load Model
 app = FastAPI(title="Churn Prediction API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # We load the model globally so it stays in memory (low latency)
 try:
@@ -50,8 +59,33 @@ def predict_churn(data: CustomerData):
     probability = model_pipeline.predict_proba(input_data)[0][1]
     prediction = int(probability >= 0.5)
 
+
     return {
         "churn_probability": float(probability),
         "is_churn_risk": bool(prediction),
         "message": "High Risk - Intervention Needed" if prediction else "Low Risk"
+    }
+
+
+@app.post("/explain")
+def explain_instance(data: CustomerData):
+    if not model_pipeline:
+        raise HTTPException(status_code=500, detail="Model not loaded")
+
+    df = pd.DataFrame([data.dict()])
+    transformed = model_pipeline.named_steps["preprocessor"].transform(df)
+
+    model = model_pipeline.named_steps["classifier"]
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(transformed)[0]
+
+    feature_names = (
+        ["CreditScore", "Age", "Tenure", "Balance",
+         "NumOfProducts", "EstimatedSalary",
+         "Geography", "Gender", "HasCrCard", "IsActiveMember"]
+    )
+
+    return {
+        "feature_names": feature_names,
+        "values": shap_values.tolist()
     }
